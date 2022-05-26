@@ -1,0 +1,22 @@
+version: 2.1
+
+jobs:
+  setup:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run: echo "hi"
+  test:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run: echo "hi"
+
+workflows:
+  version: 2
+  setup-and-test:
+    jobs:
+      - setup
+      - test:
+          requires:
+            - setup
