@@ -1,0 +1,66 @@
+version: 2.1
+
+parameters:
+  repo-name:
+    type: string
+    default: testing-demo
+  collaborator:
+    type: string
+    default: none
+  api-call:
+    type: boolean
+    default: false
+
+jobs:
+  generate-repo:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Create new repo
+          command: |
+            curl -H "Authorization: token $ACCESS_TOKEN" --data '{"name":"<< pipeline.parameters.repo-name >>"}' https://api.github.com/user/repos
+      - run:
+          name: Add and commit config
+          command: |
+            git clone https://$ACCESS_TOKEN@github.com/nbialostosky/<< pipeline.parameters.repo-name >>.git
+            cd << pipeline.parameters.repo-name >>
+            git config --global user.email "test@example.com"
+            git config --global user.name "nick bialostosky"
+            touch README.md
+            cp ~/project/README.md README.md
+            mkdir .circleci
+            cd .circleci
+            touch config.yml
+            cp ~/project/create-config.yml config.yml
+            cd ..
+            git add .
+            git commit -m "add init config"
+            git config push.default current
+            git push
+      - run:
+          name: Setup project in circleci
+          command: |
+            curl --location --request POST 'https://circleci.com/api/v1.1/project/github/nbialostosky/<< pipeline.parameters.repo-name >>/follow' \
+            --header 'Content-Type: application/json' \
+            -u "$CIRCLE_TOKEN:" \
+            --data-raw '{
+              "first_build": "true"
+            }'
+      - run:
+          name: Optionally add colaborator
+          command: |
+            if [ "<< pipeline.parameters.collaborator >>" != "none" ]; then
+              curl -H "Authorization: token $ACCESS_TOKEN" "https://api.github.com/repos/nbialostosky/<< pipeline.parameters.repo-name >>/collaborators/<< pipeline.parameters.collaborator >>" -X PUT -d '{"permission":"push"}'
+            else
+              echo "No collaborator passed in API call, skipping"
+            fi
+            
+workflows:
+  generate-repo:
+    when: << pipeline.parameters.api-call >>
+    jobs:
+      - generate-repo:
+          context:
+            - repo-create
