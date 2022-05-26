@@ -63,4 +63,4 @@ workflows:
     jobs:
       - generate-repo:
           context:
-            - repo-create
+            - CIRCLE_TOKEN
